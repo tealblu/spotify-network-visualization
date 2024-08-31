@@ -5,9 +5,13 @@
 # Imports
 import sys
 import os
+
 import pandas as pd
 import networkx as nx
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+
+from catppuccin import PALETTE
 
 # Globals
 DATA_PATH = "data/"
@@ -90,11 +94,12 @@ def visualize_network(nodes, edges):
     track_nodes = [node for node in nodes if node["type"] == "track"]
 
     # Add nodes and edges to the graph
-    G.add_nodes_from([node["id"] for node in user_nodes], type="user", bipartite=0)
-    G.add_nodes_from([node["id"] for node in track_nodes], type="track", bipartite=1)
+    G.add_nodes_from([node["id"] for node in user_nodes], type="user", bipartite=0, color=PALETTE.mocha.colors.mauve)
+    G.add_nodes_from([node["id"] for node in track_nodes], type="track", bipartite=1, color=PALETTE.mocha.colors.blue)
     G.add_edges_from([(edge["source"], edge["target"]) for edge in edges])
 
     # Configure plot
+    mpl.style.use(PALETTE.mocha.identifier)
     pos = nx.spring_layout(G)
     plt.figure(figsize=(12, 12))
     plt.rcParams['text.usetex'] = False
