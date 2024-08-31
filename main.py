@@ -17,6 +17,8 @@ import matplotlib.pyplot as plt
 from catppuccin import PALETTE
 
 # Switches
+SHOW_VISUALIZATION = True
+SHOW_GENRES = False
 VERBOSE = True
 print("Verbose mode is on.") if VERBOSE else None
 
@@ -96,6 +98,42 @@ def clean_data(data):
         data.loc[data["Track Name"] == track_name, "Spotify ID"] = first_spotify_id
         print(f"-> Replacing all Spotify IDs with '{first_spotify_id}' for track name '{track_name}'.") if VERBOSE else None
 
+    # Dictionary of genre categories
+    genre_categories = {
+        "Rock & Metal": ["alt-rock", "alternative", "black-metal", "death-metal", "emo", "grindcore", "hard-rock", "hardcore", "heavy-metal", "metal", "metal-misc", "metalcore", "psych-rock", "punk", "punk-rock", "rock", "rock-n-roll", "rockabilly"],
+        "Electronic & Dance": ["breakbeat", "chicago-house", "club", "dance", "dancehall", "deep-house", "detroit-techno", "disco", "drum-and-bass", "dub", "dubstep", "edm", "electro", "electronic", "house", "idm", "minimal-techno", "post-dubstep", "progressive-house", "techno", "trance", "trip-hop"],
+        "Pop & Indie": ["acoustic", "indie", "indie-pop", "j-pop", "k-pop", "pop", "power-pop", "singer-songwriter", "synth-pop"],
+        "Folk & Country": ["bluegrass", "country", "folk", "honky-tonk"],
+        "Jazz & Blues": ["blues", "jazz"],
+        "Classical & Traditional": ["classical", "opera", "piano"],
+        "World & Regional": ["afrobeat", "bossanova", "brazil", "cantopop", "forro", "french", "german", "gospel", "indian", "iranian", "j-dance", "j-idol", "j-rock", "latin", "latino", "malay", "mandopop", "mpb", "pagode", "philippines-opm", "reggaeton", "samba", "sertanejo", "spanish", "swedish", "tango", "turkish", "world-music"],
+        "Alternative & Experimental": ["ambient", "chill", "goth", "groove", "industrial", "minimal-techno", "post-dubstep", "psych-rock", "punk", "punk-rock", "shoegaze"],
+        "Soundtracks & Themes": ["anime", "comedy", "disney", "holidays", "movies", "romance", "show-tunes", "soundtracks"],
+        "Miscellaneous": ["children", "happy", "rainy-day", "road-trip", "sad", "sleep", "study", "summer", "work-out", "new-age", "new-release", "party"]
+    }
+    
+    # Pivoting the dictionary to map genres to their larger category
+    genre_to_category = {}
+    for category, genres in genre_categories.items():
+        for genre in genres:
+            genre_to_category[genre] = category
+    
+    # Replace the list of genres with one string containing the genre category
+    data["Genres"] = data["Genres"].apply(lambda x: ", ".join([genre_to_category[genre] for genre in x.split(",") if genre in genre_to_category]))
+
+    # Collapse entries with multiple of the same genre
+    data["Genres"] = data["Genres"].apply(lambda x: ", ".join(set(x.split(", "))))
+
+    # Sort each entry's genre list alphabetically
+    data["Genres"] = data["Genres"].apply(lambda x: ", ".join(sorted(x.split(", "))))
+
+    # Set entries without genre to miscellaneous
+    data["Genres"] = data["Genres"].apply(lambda x: "Miscellaneous" if x == "" else x)
+
+    # Print genres for debugging
+    print("Unique genres in dataset:") if VERBOSE else None
+    print(data["Genres"].unique()) if VERBOSE else None
+
     return data
     
 def create_nodes_and_edges(data):
@@ -121,11 +159,33 @@ def create_nodes_and_edges(data):
     # Create nodes
     nodes = []
     for user in users:
-        nodes.append({"id": user, "type": "user", "label": user})
+        nodes.append({"id": user, "type": "user", "label": user, "color": PALETTE.mocha.colors.overlay0.hex, "size": 15, "bipartite": 0})
 
+    # Get list of colors from palette
+    colors = []
+    for color in PALETTE.mocha.colors:
+        colors.append(color) if color.accent else None
+
+    # Get genres from data
+    genres = data["Genres"].unique().tolist()
+
+    # Create palette for genres with len(genres) colors
+    genre_colors = []
+    legend = {}
+    for i in range(len(genres)):
+        genre_colors.append(colors[i % len(colors)])
+        print("Genre " + genres[i] + " has color " + genre_colors[i].name) if VERBOSE else None
+
+    # Create nodes for tracks
     for spotify_id in spotify_ids:
         index = list(spotify_ids).index(spotify_id)
-        nodes.append({"id": spotify_id, "type": "track", "label": track_labels[index], "genre": data[data["Spotify ID"] == spotify_id]["Genres"].iloc[0]})
+        
+        # Get genre for track
+        track_data = data[data["Spotify ID"] == spotify_id]
+        genre = track_data["Genres"].iloc[0]
+        genre_color = genre_colors[genres.index(genre)]
+
+        nodes.append({"id": spotify_id, "type": "track", "label": track_labels[index], "genre": genre, "color": genre_color.hex, "size": 3, "bipartite": 1})
 
     # Create edges by looping thru spotify ids and users
     edges = []
@@ -134,6 +194,18 @@ def create_nodes_and_edges(data):
         users = track_data["user"].tolist()
         for user in users:
             edges.append({"source": user, "target": spotify_id})
+    
+    if SHOW_GENRES:
+        # Create nodes for genres
+        for genre in genres:
+            nodes.append({"id": genre, "type": "genre", "label": genre, "color": legend[genre].hex, "size": 5, "bipartite": 2})
+
+        # Create edges for genres
+        for spotify_id in spotify_ids:
+            track_data = data[data["Spotify ID"] == spotify_id]
+            genres = track_data["Genres"]
+            for genre in genres:
+                edges.append({"source": spotify_id, "target": genre, "color": legend[genre].hex})
 
     print("Created " + str(len(nodes)) + " nodes and " + str(len(edges)) + " edges.") if VERBOSE else None
 
@@ -143,15 +215,9 @@ def visualize_network(nodes, edges):
     # Create a new graph
     G = nx.Graph()
 
-    user_nodes = [node for node in nodes if node["type"] == "user"]
-    track_nodes = [node for node in nodes if node["type"] == "track"]
-
     # Add nodes and edges to the graph
-    for node in user_nodes:
-        G.add_node(node["id"], label=node["label"], type="user", bipartite=0, color=PALETTE.mocha.colors.mauve.hex)
-    
-    for node in track_nodes:
-        G.add_node(node["id"], label=node["label"], type="track", bipartite=1, color=PALETTE.mocha.colors.blue.hex)
+    for node in nodes:
+        G.add_node(node["id"], label=node["label"], type=node["type"], size=node["size"], bipartite=node["bipartite"], color=node["color"])
     
     for edge in edges:
         G.add_edge(edge["source"], edge["target"])
@@ -165,8 +231,8 @@ def visualize_network(nodes, edges):
     N.show_buttons(filter_=True)
 
     # Show visualization
-    N.show(OUTPUT_PATH + "network.html", notebook=False)
-    print("Network visualization displayed in browser.") if VERBOSE else None
+    N.show(OUTPUT_PATH + "network.html", notebook=False) if SHOW_VISUALIZATION else None
+    print("Network visualization displayed in browser.") if VERBOSE and SHOW_VISUALIZATION else None
 
 def main():
     print("\nPlease wait while the visualization is created...")
@@ -192,7 +258,7 @@ def main():
         nodes, edges = create_nodes_and_edges(data)
         print("Nodes and edges prepared successfully.")
     except Exception as e:
-        print(f"Error preparing nodes and edges: {e}")
+        print(f"Error preparing nodes and edges: {repr(e)}")
         return
 
     try:
@@ -200,7 +266,7 @@ def main():
         visualize_network(nodes, edges)
         print("Network visualization created successfully.")
     except Exception as e:
-        print(f"Error creating network visualization: {e}")
+        print(f"Error creating network visualization: {repr(e)}")
         return
 
     print("\nProgram complete.")
