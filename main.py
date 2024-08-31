@@ -2,19 +2,27 @@
 # 2024-08-31
 # Spotify Network Visualization
 
+print("\nSpotify Network Visualization 1.0")
+
 # Imports
 import sys
 import os
 
 import pandas as pd
 import networkx as nx
+from pyvis.network import Network
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 from catppuccin import PALETTE
 
+# Switches
+VERBOSE = True
+print("Verbose mode is on.") if VERBOSE else None
+
 # Globals
 DATA_PATH = "data/"
+OUTPUT_PATH = "out/"
 
 def load_data_from_csv():
     # Get filenames from datapath
@@ -23,7 +31,7 @@ def load_data_from_csv():
     # Load data from each file
     data_list = []
     for filename in filenames:
-        print("\nLoading data from file: " + filename)
+        print("Loading data from file: " + filename)
         data = pd.read_csv(DATA_PATH + filename)
 
         # Get the name of the spotify user from the first part of the filename
@@ -34,8 +42,8 @@ def load_data_from_csv():
 
         data_list.append(data)
 
-        print("Data sample for " + user + ":")
-        print(data.head())
+        print("Data sample for " + user + ":") if VERBOSE else None
+        print(data.head()) if VERBOSE else None
 
     # Concatenate all dataframes into one
     combined_data = pd.concat(data_list)
@@ -56,13 +64,13 @@ def create_nodes_and_edges(data):
 
         # Check if track_data is empty
         if track_data.empty:
-            print(f"Warning: No data found for Spotify ID {spotify_id}. Skipping...")
+            print(f"Warning: No data found for Spotify ID {spotify_id}. Skipping...") if VERBOSE else None
             track_labels.append("Unknown - Unknown")
             continue
 
         artist = track_data["Artist Name(s)"].iloc[0]
         track_name = track_data["Track Name"].iloc[0]
-        track_labels.append(artist + " - " + track_name)
+        track_labels.append(track_name + "\n" + artist)
 
     # Replace special characters in labels (#, $, %, &)
     track_labels = [label.replace("#", "sharp").replace("$", "dollar").replace("%", "percent").replace("&", "and") for label in track_labels]
@@ -77,7 +85,7 @@ def create_nodes_and_edges(data):
 
     for spotify_id in spotify_ids:
         index = list(spotify_ids).index(spotify_id)
-        nodes.append({"id": spotify_id, "type": "track", "label": track_labels[index]})
+        nodes.append({"id": spotify_id, "type": "track", "label": track_labels[index], "genre": data[data["Spotify ID"] == spotify_id]["Genres"].iloc[0]})
 
     # Create edges by looping thru spotify ids and users
     edges = []
@@ -86,6 +94,8 @@ def create_nodes_and_edges(data):
         users = track_data["user"].tolist()
         for user in users:
             edges.append({"source": user, "target": spotify_id})
+
+    print("Created " + str(len(nodes)) + " nodes and " + str(len(edges)) + " edges.") if VERBOSE else None
 
     return nodes, edges
 
@@ -97,37 +107,31 @@ def visualize_network(nodes, edges):
     track_nodes = [node for node in nodes if node["type"] == "track"]
 
     # Add nodes and edges to the graph
-    G.add_nodes_from([node["id"] for node in user_nodes], type="user", bipartite=0)
-    G.add_nodes_from([node["id"] for node in track_nodes], type="track", bipartite=1)
-    G.add_edges_from([(edge["source"], edge["target"]) for edge in edges])
-
-    # Configure plot
-    mpl.style.use(PALETTE.mocha.identifier)
-    pos = nx.spring_layout(G, k=0.03)
-    plt.figure(figsize=(12, 12))
-    plt.rcParams['text.usetex'] = False
-
-    # Draw nodes
-    nx.draw_networkx_nodes(G, pos, nodelist=[node["id"] for node in user_nodes], node_size=100, alpha=0.8, node_color=PALETTE.mocha.colors.mauve.hex)
-    nx.draw_networkx_nodes(G, pos, nodelist=[node["id"] for node in track_nodes], node_size=10, alpha=0.8, node_color=PALETTE.mocha.colors.blue.hex)
-
-    # Draw edges
-    nx.draw_networkx_edges(G, pos, alpha=0.5)
-
-    # Draw user labels large
-    user_labels = {node["id"]: node["label"] for node in user_nodes}
-    nx.draw_networkx_labels(G, pos, labels=user_labels, font_size=20, font_color=PALETTE.mocha.colors.text.hex)
-
-    # Draw track labels small
-    track_labels = {node["id"]: node["label"] for node in track_nodes}
-    nx.draw_networkx_labels(G, pos, labels=track_labels, font_size=2, font_color=PALETTE.mocha.colors.text.hex)
+    for node in user_nodes:
+        G.add_node(node["id"], label=node["label"], type="user", bipartite=0, color=PALETTE.mocha.colors.mauve.hex)
     
-    # Save the graph to a file
-    plt.savefig("out/network.svg", format="svg")
-    print("Network visualization saved to 'out/network.svg'.")
+    for node in track_nodes:
+        G.add_node(node["id"], label=node["label"], type="track", bipartite=1, color=PALETTE.mocha.colors.blue.hex)
+    
+    for edge in edges:
+        G.add_edge(edge["source"], edge["target"])
+
+    # Create a network visualization
+    N = Network("1000px", "1000px", notebook=False, directed=False, bgcolor=PALETTE.mocha.colors.mantle.hex, font_color=PALETTE.mocha.colors.text.hex)
+    N.from_nx(G)
+
+    # Configure the network visualization
+    N.barnes_hut(spring_strength=0.15)
+    N.show_buttons(filter_=True)
+
+    # Show visualization
+    N.show(OUTPUT_PATH + "network.html", notebook=False)
+    print("Network visualization displayed in browser.") if VERBOSE else None
 
 def main():
-    print("Getting ready to load data...")
+    print("\nPlease wait while the visualization is created...")
+
+    print("Loading data...")
     data = load_data_from_csv()
     print("Data loaded successfully.")
 
