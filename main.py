@@ -49,15 +49,61 @@ def load_data_from_csv():
     combined_data = pd.concat(data_list)
     return combined_data
 
-def create_nodes_and_edges(data):
+def clean_data(data):
     # Filter out any data that doesn't have a spotify_id
     data = data[data["Spotify ID"].notna()]
 
+    # Filter out any data that doesn't have a genre
+    data = data[data["Genres"].notna()]
+
+    # Filter out any data that doesn't have a track name
+    data = data[data["Track Name"].notna()]
+
+    # Filter out any data that doesn't have an artist name
+    data = data[data["Artist Name(s)"].notna()]
+
+    # Filter out any data that doesn't have a user
+    data = data[data["user"].notna()]
+
+    # Remove special characters and foreign characters from track names
+    data["Track Name"] = data["Track Name"].str.replace(r'[^\x00-\x7F]+', '', regex=True)
+
+    # Remove special characters from artist names
+    data["Artist Name(s)"] = data["Artist Name(s)"].str.replace(r'[^\x00-\x7F]+', '', regex=True)
+
+    # Remove special characters from genres
+    data["Genres"] = data["Genres"].str.replace(r'[^\x00-\x7F]+', '', regex=True)
+
+    # Remove special characters from user names
+    data["user"] = data["user"].str.replace(r'[^\x00-\x7F]+', '', regex=True)
+
+    # Search for duplicate track names with different Spotify IDs and combine them
+    duplicate_tracks = data[data.duplicated(subset="Track Name", keep=False)]
+    print(f"Found {len(duplicate_tracks)} duplicate track names. Attempting to resolve.") if VERBOSE and len(duplicate_tracks) > 0 else None
+
+    for index, row in duplicate_tracks.iterrows():
+        # Get all Spotify IDs for the track name
+        track_name = row["Track Name"]
+        spotify_ids = data[data["Track Name"] == track_name]["Spotify ID"].unique().tolist()
+        
+        if len(spotify_ids) == 1:
+            continue
+
+        print(f"Found {len(spotify_ids)} Spotify IDs for track name '{track_name}': {spotify_ids}") if VERBOSE else None
+
+        # Replace all Spotify IDs with the first one
+        first_spotify_id = spotify_ids[0]
+        data.loc[data["Track Name"] == track_name, "Spotify ID"] = first_spotify_id
+        print(f"-> Replacing all Spotify IDs with '{first_spotify_id}' for track name '{track_name}'.") if VERBOSE else None
+
+    return data
+    
+def create_nodes_and_edges(data):
     # Extract unique users and Spotify IDs from dataframe
     users = data["user"].unique().tolist()
     spotify_ids = data["Spotify ID"].unique().tolist()
-    
-    # Get labels for tracks - artist and track name
+
+    # Create labels for tracks
     track_labels = []
     for spotify_id in spotify_ids:
         track_data = data[data["Spotify ID"] == spotify_id]
@@ -71,12 +117,6 @@ def create_nodes_and_edges(data):
         artist = track_data["Artist Name(s)"].iloc[0]
         track_name = track_data["Track Name"].iloc[0]
         track_labels.append(track_name + "\n" + artist)
-
-    # Replace special characters in labels (#, $, %, &)
-    track_labels = [label.replace("#", "sharp").replace("$", "dollar").replace("%", "percent").replace("&", "and") for label in track_labels]
-
-    # Replace any non-ascii characters in labels
-    track_labels = [label.encode('ascii', 'ignore').decode('ascii') for label in track_labels]
 
     # Create nodes
     nodes = []
@@ -131,16 +171,39 @@ def visualize_network(nodes, edges):
 def main():
     print("\nPlease wait while the visualization is created...")
 
-    print("Loading data...")
-    data = load_data_from_csv()
-    print("Data loaded successfully.")
+    try:
+        print("Loading data...")
+        data = load_data_from_csv()
+        print("Data loaded successfully.")
+    except Exception as e:
+        print(f"Error loading data: {e}")
+        return
 
-    print("\nPreparing nodes and edges...")
-    nodes, edges = create_nodes_and_edges(data)
-    print("Nodes and edges prepared successfully.")
+    try:
+        print("Cleaning data...")
+        data = clean_data(data)
+        print("Data cleaned successfully.")
+    except Exception as e:
+        print(f"Error cleaning data: {e}")
+        return
 
-    print("\nCreating network visualization...")
-    visualize_network(nodes, edges)
+    try:
+        print("\nPreparing nodes and edges...")
+        nodes, edges = create_nodes_and_edges(data)
+        print("Nodes and edges prepared successfully.")
+    except Exception as e:
+        print(f"Error preparing nodes and edges: {e}")
+        return
+
+    try:
+        print("\nCreating network visualization...")
+        visualize_network(nodes, edges)
+        print("Network visualization created successfully.")
+    except Exception as e:
+        print(f"Error creating network visualization: {e}")
+        return
+
+    print("\nProgram complete.")
 
     
 
