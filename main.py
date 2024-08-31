@@ -67,6 +67,9 @@ def create_nodes_and_edges(data):
     # Replace special characters in labels (#, $, %, &)
     track_labels = [label.replace("#", "sharp").replace("$", "dollar").replace("%", "percent").replace("&", "and") for label in track_labels]
 
+    # Replace any non-ascii characters in labels
+    track_labels = [label.encode('ascii', 'ignore').decode('ascii') for label in track_labels]
+
     # Create nodes
     nodes = []
     for user in users:
@@ -94,33 +97,34 @@ def visualize_network(nodes, edges):
     track_nodes = [node for node in nodes if node["type"] == "track"]
 
     # Add nodes and edges to the graph
-    G.add_nodes_from([node["id"] for node in user_nodes], type="user", bipartite=0, color=PALETTE.mocha.colors.mauve)
-    G.add_nodes_from([node["id"] for node in track_nodes], type="track", bipartite=1, color=PALETTE.mocha.colors.blue)
+    G.add_nodes_from([node["id"] for node in user_nodes], type="user", bipartite=0)
+    G.add_nodes_from([node["id"] for node in track_nodes], type="track", bipartite=1)
     G.add_edges_from([(edge["source"], edge["target"]) for edge in edges])
 
     # Configure plot
     mpl.style.use(PALETTE.mocha.identifier)
-    pos = nx.spring_layout(G)
+    pos = nx.spring_layout(G, k=0.03)
     plt.figure(figsize=(12, 12))
     plt.rcParams['text.usetex'] = False
 
     # Draw nodes
-    nx.draw_networkx_nodes(G, pos, nodelist=[node["id"] for node in user_nodes], node_color="b", node_size=100, alpha=0.8)
-    nx.draw_networkx_nodes(G, pos, nodelist=[node["id"] for node in track_nodes], node_color="r", node_size=100, alpha=0.8)
+    nx.draw_networkx_nodes(G, pos, nodelist=[node["id"] for node in user_nodes], node_size=100, alpha=0.8, node_color=PALETTE.mocha.colors.mauve.hex)
+    nx.draw_networkx_nodes(G, pos, nodelist=[node["id"] for node in track_nodes], node_size=10, alpha=0.8, node_color=PALETTE.mocha.colors.blue.hex)
 
     # Draw edges
     nx.draw_networkx_edges(G, pos, alpha=0.5)
 
-    # Draw labels
-    labels = {node["id"]: node["label"] for node in nodes}
-    nx.draw_networkx_labels(G, pos, labels, font_size=6)
+    # Draw user labels large
+    user_labels = {node["id"]: node["label"] for node in user_nodes}
+    nx.draw_networkx_labels(G, pos, labels=user_labels, font_size=20, font_color=PALETTE.mocha.colors.text.hex)
+
+    # Draw track labels small
+    track_labels = {node["id"]: node["label"] for node in track_nodes}
+    nx.draw_networkx_labels(G, pos, labels=track_labels, font_size=2, font_color=PALETTE.mocha.colors.text.hex)
     
     # Save the graph to a file
-    plt.savefig("out/network.png")
-    print("Network visualization saved to 'out/network.png'.")
-
-    # Show the plot
-    plt.show()
+    plt.savefig("out/network.svg", format="svg")
+    print("Network visualization saved to 'out/network.svg'.")
 
 def main():
     print("Getting ready to load data...")
