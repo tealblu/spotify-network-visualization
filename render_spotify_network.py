@@ -208,7 +208,8 @@ def create_nodes_and_edges(data):
                     for genre in genre_list:
                         for g in genre.split(","):
                             if g not in user_genres:
-                                user_genres.append(g)
+                                
+To https://github.com/tealblu/spotify-network-visualization.giter_genres.append(g)
 
                 for genre in user_genres:
                     category = genre_to_category(genre)
