@@ -13,10 +13,21 @@ from pyvis.network import Network
 from catppuccin import PALETTE
 
 # Switches
-SHOW_VISUALIZATION =          True
-SHOW_GENRES =                 True
-WRITE_ENTRIES_WITHOUT_GENRE = True
-VERBOSE =                     True
+SHOW_VISUALIZATION =          True # Set to False to disable opening the visualization in a browser
+SHOW_GENRES =                 True # Set to False to disable showing genre nodes
+SHOW_SONGS =                  True # Set to False to disable showing song nodes
+SHOW_GENRE_USERS =            True # Set to False to disable showing genre > user connections
+WRITE_ENTRIES_WITHOUT_GENRE = True # Set to False to disable writing entries without genre to a file
+VERBOSE =                     True # Set to False to disable verbose output
+
+# Check to make sure switches are compatible
+if not SHOW_GENRES and not SHOW_SONGS and not SHOW_GENRE_USERS:
+    print("Error: At least one of SHOW_GENRES, SHOW_SONGS, or SHOW_GENRE_USERS must be set to True.")
+    sys.exit(1)
+
+if SHOW_GENRE_USERS and not SHOW_GENRES:
+    print("Error: SHOW_GENRE_USERS cannot be set to True if SHOW_GENRES is set to False.")
+    sys.exit(1)
 
 # Globals
 DATA_PATH = "data/"
@@ -50,6 +61,17 @@ def load_data_from_csv():
     combined_data = pd.concat(data_list)
     return combined_data
 
+def genre_to_category(genre):
+    genre_mapping = pd.read_json("genre_mapping.json", typ="series")
+    genre_to_category = genre_mapping.to_dict()
+    return genre_to_category.get(genre, "Unknown")
+
+def get_category_list():
+    genre_mapping = pd.read_json("genre_mapping.json", typ="series")
+    genre_to_category = genre_mapping.to_dict()
+    categories = list(genre_to_category.values())
+    return categories
+
 def clean_data(data):
     # Filter out any data that doesn't have necessary fields
     required_columns = ["Spotify ID", "Genres", "Track Name", "Artist Name(s)", "user"]
@@ -69,10 +91,6 @@ def clean_data(data):
 
     data.loc[duplicate_tracks.index, "Spotify ID"] = data.groupby("Track Name")["Spotify ID"].transform('first')
     
-    # Get genre: category mapping from genre_mapping.json
-    genre_mapping = pd.read_json("genre_mapping.json", typ="series")
-    genre_to_category = genre_mapping.to_dict()
-    
     # Get list of genres for each track
     data["Genres"] = data["Genres"].str.split(", ")
 
@@ -80,7 +98,7 @@ def clean_data(data):
     data["Primary Genre"] = data["Genres"].apply(lambda x: x[0].split(",")[0])
 
     # Create a new column for the category of each genre
-    data["Category"] = data["Primary Genre"].map(genre_to_category)
+    data["Category"] = data["Primary Genre"].apply(genre_to_category)
 
     # Set category to "Unknown" if genre is not in the dictionary
     data.loc[data["Category"].isnull(), "Category"] = "Unknown"
@@ -93,10 +111,6 @@ def clean_data(data):
             print("Entries without genre written to file.")
         else:
             print("No entries without genre found.")
-    
-    if VERBOSE:
-        print("Unique categories in dataset:")
-        print(data["Category"].unique())
 
     return data
 
@@ -106,13 +120,15 @@ def create_nodes_and_edges(data):
     users = data["user"].unique().tolist()
     spotify_ids = data["Spotify ID"].unique().tolist()
 
-    # Create nodes for users
     nodes = []
+    edges = []
+
+    # Create nodes for users
     for user in users:
         nodes.append({"id": user, "type": "user", "label": user, "color": PALETTE.mocha.colors.overlay0.hex, "size": 30, "bipartite": 0})
 
     # Create labels for tracks
-    track_labels = []
+    track_labels = {}
     for spotify_id in spotify_ids:
         track_data = data[data["Spotify ID"] == spotify_id]
 
@@ -124,7 +140,7 @@ def create_nodes_and_edges(data):
 
         artist = track_data["Artist Name(s)"].iloc[0]
         track_name = track_data["Track Name"].iloc[0]
-        track_labels.append(track_name + "\n" + artist)
+        track_labels[spotify_id] = track_name + "\n" + artist
 
     # Get list of colors from palette
     colors = []
@@ -132,38 +148,70 @@ def create_nodes_and_edges(data):
         colors.append(color) if color.accent else None
 
     # Get list of categories
-    genres = data["Category"].unique().tolist()
+    categories = get_category_list() + ["Unknown"]
 
     # Create palette for categories with len(categories) colors modulated from the palette
-    genre_colors = [colors[i % len(colors)] for i in range(len(genres))]
+    category_colors = [colors[i % len(colors)] for i in range(len(categories))]
 
     # Create nodes and edges for tracks
-    edges = []
-    for spotify_id in spotify_ids:
-        # Get data for track
-        index = list(spotify_ids).index(spotify_id)
-        track_data = data[data["Spotify ID"] == spotify_id]
-        genre = track_data["Category"].iloc[0]
-        users = track_data["user"].tolist()
+    if SHOW_SONGS:
+        for spotify_id in spotify_ids:
+            # Get data for track
+            track_data = data[data["Spotify ID"] == spotify_id]
+            label = track_labels[spotify_id]
+            genre = track_data["Primary Genre"].iloc[0]
+            category = track_data["Category"].iloc[0]
+            color = category_colors[categories.index(category)].hex
+            users = track_data["user"].tolist()
 
-        # Create node for track
-        nodes.append({"id": spotify_id, "type": "track", "label": track_labels[index], "genre": genre, "color": genre_colors[genres.index(genre)].hex, "size": 2, "bipartite": 1})
+            # Create node for track
+            nodes.append({"id": spotify_id, "type": "track", "label": label, "genre": genre, "color": color, "size": 2, "bipartite": 1})
 
-        # Create edges between users and tracks
-        for user in users:
-            edges.append({"source": user, "target": spotify_id, "color": PALETTE.mocha.colors.overlay1.hex})
+            # Create edges between users and tracks
+            for user in users:
+                edges.append({"source": user, "target": spotify_id, "color": PALETTE.mocha.colors.overlay1.hex, "length": 0.5})
     
     # Create nodes and edges for genres
     if SHOW_GENRES:
+        # Split genre lists into individual genres, keeping only new ones
+        genres = []
+        for genre_list in data["Genres"]:
+            for genre in genre_list:
+                for g in genre.split(","):
+                    if g not in genres:
+                        genres.append(g)
+
+        # Print num of genres
+        print("Found " + str(len(genres)) + " unique genres.") if VERBOSE else None
+
         # Create nodes for genres
         for genre in genres:
-            nodes.append({"id": genre, "type": "genre", "label": genre, "color": genre_colors[genres.index(genre)].hex, "size": 5, "bipartite": 0})
+            # Get category from category-genre mapping
+            category = genre_to_category(genre)
+            nodes.append({"id": genre, "type": "genre", "label": genre, "color": category_colors[categories.index(category)].hex, "size": 5, "bipartite": 0})
 
-        # Create edges between tracks and genres
-        for spotify_id in spotify_ids:
-            track_data = data[data["Spotify ID"] == spotify_id]
-            genre = track_data["Category"].iloc[0]
-            edges.append({"source": spotify_id, "target": genre, "color": genre_colors[genres.index(genre)].hex, "width": 0.5})
+        if SHOW_SONGS:
+            # Create edges between tracks and genres
+            for spotify_id in spotify_ids:
+                track_data = data[data["Spotify ID"] == spotify_id]
+                genre = track_data["Category"].iloc[0]
+                category = genre_to_category(genre)
+                edges.append({"source": spotify_id, "target": genre, "color": category_colors[categories.index(category)].hex})
+
+        # Create edges for genre > user connections
+        if SHOW_GENRE_USERS:
+            for user in users:
+                user_data = data[data["user"] == user]
+                user_genres = []
+                for genre_list in user_data["Genres"]:
+                    for genre in genre_list:
+                        for g in genre.split(","):
+                            if g not in user_genres:
+                                user_genres.append(g)
+
+                for genre in user_genres:
+                    category = genre_to_category(genre)
+                    edges.append({"source": user, "target": genre, "color": category_colors[categories.index(category)].hex})
 
     print("Created " + str(len(nodes)) + " nodes and " + str(len(edges)) + " edges.") if VERBOSE else None
 
@@ -185,7 +233,7 @@ def visualize_network(nodes, edges):
     N.from_nx(G)
 
     # Configure the network visualization
-    #N.barnes_hut(spring_strength=0.15)
+    N.barnes_hut(spring_strength=0.15)
     N.show_buttons(filter_=True)
 
     # Show visualization
