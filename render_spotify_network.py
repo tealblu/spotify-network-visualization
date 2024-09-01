@@ -148,7 +148,7 @@ def create_nodes_and_edges(data):
     for color in PALETTE.mocha.colors:
         colors.append(color) if color.accent else None
 
-    # Get list of categories
+    # Get list of categories93
     categories = get_category_list() + ["Unknown"]
 
     # Create palette for categories with len(categories) colors modulated from the palette
@@ -208,8 +208,7 @@ def create_nodes_and_edges(data):
                     for genre in genre_list:
                         for g in genre.split(","):
                             if g not in user_genres:
-                                
-To https://github.com/tealblu/spotify-network-visualization.giter_genres.append(g)
+                                user_genres.append(g)
 
                 for genre in user_genres:
                     category = genre_to_category(genre)
