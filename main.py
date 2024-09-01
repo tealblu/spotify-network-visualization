@@ -2,7 +2,15 @@
 # 2024-08-31
 # Spotify Network Visualization
 
-print("\nSpotify Network Visualization 1.0")
+# Switches
+SHOW_VISUALIZATION = True
+SHOW_GENRES = True
+WRITE_ENTRIES_WITHOUT_GENRE = True
+VERBOSE = True
+
+# Globals
+DATA_PATH = "data/"
+OUTPUT_PATH = "out/"
 
 # Imports
 import sys
@@ -16,15 +24,8 @@ import matplotlib.pyplot as plt
 
 from catppuccin import PALETTE
 
-# Switches
-SHOW_VISUALIZATION = True
-SHOW_GENRES = False
-VERBOSE = True
+print("\nSpotify Network Visualization 1.0")
 print("Verbose mode is on.") if VERBOSE else None
-
-# Globals
-DATA_PATH = "data/"
-OUTPUT_PATH = "out/"
 
 def load_data_from_csv():
     # Get filenames from datapath
@@ -52,57 +53,30 @@ def load_data_from_csv():
     return combined_data
 
 def clean_data(data):
-    # Filter out any data that doesn't have a spotify_id
-    data = data[data["Spotify ID"].notna()]
-
-    # Filter out any data that doesn't have a genre
-    data = data[data["Genres"].notna()]
-
-    # Filter out any data that doesn't have a track name
-    data = data[data["Track Name"].notna()]
-
-    # Filter out any data that doesn't have an artist name
-    data = data[data["Artist Name(s)"].notna()]
-
-    # Filter out any data that doesn't have a user
-    data = data[data["user"].notna()]
-
-    # Remove special characters and foreign characters from track names
-    data["Track Name"] = data["Track Name"].str.replace(r'[^\x00-\x7F]+', '', regex=True)
-
-    # Remove special characters from artist names
-    data["Artist Name(s)"] = data["Artist Name(s)"].str.replace(r'[^\x00-\x7F]+', '', regex=True)
-
-    # Remove special characters from genres
-    data["Genres"] = data["Genres"].str.replace(r'[^\x00-\x7F]+', '', regex=True)
-
-    # Remove special characters from user names
-    data["user"] = data["user"].str.replace(r'[^\x00-\x7F]+', '', regex=True)
-
-    # Search for duplicate track names with different Spotify IDs and combine them
+    # Filter out any data that doesn't have necessary fields
+    required_columns = ["Spotify ID", "Genres", "Track Name", "Artist Name(s)", "user"]
+    data = data.dropna(subset=required_columns).copy()  # Use copy to avoid SettingWithCopyWarning
+    
+    # Remove special characters from relevant columns
+    for column in ["Track Name", "Artist Name(s)", "Genres", "user"]:
+        data.loc[:, column] = data[column].str.replace(r'[^\x00-\x7F]+', '', regex=True)
+    
+    # Resolve duplicate track names with different Spotify IDs
     duplicate_tracks = data[data.duplicated(subset="Track Name", keep=False)]
-    print(f"Found {len(duplicate_tracks)} duplicate track names. Attempting to resolve.") if VERBOSE and len(duplicate_tracks) > 0 else None
+    if VERBOSE and not duplicate_tracks.empty:
+        print(f"Found {len(duplicate_tracks)} duplicate track names. Attempting to resolve.")
 
-    for index, row in duplicate_tracks.iterrows():
-        # Get all Spotify IDs for the track name
-        track_name = row["Track Name"]
-        spotify_ids = data[data["Track Name"] == track_name]["Spotify ID"].unique().tolist()
-        
-        if len(spotify_ids) == 1:
-            continue
+    # Ensure no duplicates in index
+    data = data.reset_index(drop=True)
 
-        print(f"Found {len(spotify_ids)} Spotify IDs for track name '{track_name}': {spotify_ids}") if VERBOSE else None
-
-        # Replace all Spotify IDs with the first one
-        first_spotify_id = spotify_ids[0]
-        data.loc[data["Track Name"] == track_name, "Spotify ID"] = first_spotify_id
-        print(f"-> Replacing all Spotify IDs with '{first_spotify_id}' for track name '{track_name}'.") if VERBOSE else None
-
-    # Dictionary of genre categories
+    data.loc[duplicate_tracks.index, "Spotify ID"] = data.groupby("Track Name")["Spotify ID"].transform('first')
+    
+    # Genre categories dictionary
     genre_categories = {
         "Rock & Metal": ["alt-rock", "alternative", "black-metal", "death-metal", "emo", "grindcore", "hard-rock", "hardcore", "heavy-metal", "metal", "metal-misc", "metalcore", "psych-rock", "punk", "punk-rock", "rock", "rock-n-roll", "rockabilly"],
         "Electronic & Dance": ["breakbeat", "chicago-house", "club", "dance", "dancehall", "deep-house", "detroit-techno", "disco", "drum-and-bass", "dub", "dubstep", "edm", "electro", "electronic", "house", "idm", "minimal-techno", "post-dubstep", "progressive-house", "techno", "trance", "trip-hop"],
-        "Pop & Indie": ["acoustic", "indie", "indie-pop", "j-pop", "k-pop", "pop", "power-pop", "singer-songwriter", "synth-pop"],
+        "Pop & Indie": ["acoustic", "indie", "indie-pop", "j-pop", "k-pop", "pop", "power-pop", "singer-songwriter", "synth-pop", "indie pop", "buffalo ny indie"],
+        "Jazz & Blues": ["blues", "jazz"],
         "Folk & Country": ["bluegrass", "country", "folk", "honky-tonk"],
         "Jazz & Blues": ["blues", "jazz"],
         "Classical & Traditional": ["classical", "opera", "piano"],
@@ -112,29 +86,43 @@ def clean_data(data):
         "Miscellaneous": ["children", "happy", "rainy-day", "road-trip", "sad", "sleep", "study", "summer", "work-out", "new-age", "new-release", "party"]
     }
     
-    # Pivoting the dictionary to map genres to their larger category
-    genre_to_category = {}
-    for category, genres in genre_categories.items():
-        for genre in genres:
-            genre_to_category[genre] = category
+    # Flatten genre categories
+    genre_to_category = {genre: category for category, genres in genre_categories.items() for genre in genres}
     
-    # Replace the list of genres with one string containing the genre category
-    data["Genres"] = data["Genres"].apply(lambda x: ", ".join([genre_to_category[genre] for genre in x.split(",") if genre in genre_to_category]))
+    # Replace genres with categories or set to miscellaneous if not found
+    def map_genres(genre_str):
+        genres = genre_str.split(",")
+        mapped_genres = []
+        missing_genres = []
+        for genre in genres:
+            print(genre) if VERBOSE else None
+            if genre in genre_to_category.keys():
+                mapped_genres.append(genre_to_category[genre])
+            else:
+                # check if missing genre is already in list
+                if genre not in missing_genres:
+                    missing_genres.append(genre)
+                mapped_genres.append("Unknown")
 
-    # Collapse entries with multiple of the same genre
-    data["Genres"] = data["Genres"].apply(lambda x: ", ".join(set(x.split(", "))))
+        if WRITE_ENTRIES_WITHOUT_GENRE and missing_genres:
+            with open(OUTPUT_PATH + "missing_genres.txt", "a") as f:
+                f.write(f"{missing_genres}\n")                
+        return ", ".join(set(mapped_genres))
+    
+    data["Genres"] = data["Genres"].apply(map_genres)
+    
+    # Remove entries without matching genre
+    data = data[data["Genres"] != ""]
 
-    # Sort each entry's genre list alphabetically
+    # Sort genre lists alphabetically
     data["Genres"] = data["Genres"].apply(lambda x: ", ".join(sorted(x.split(", "))))
-
-    # Set entries without genre to miscellaneous
-    data["Genres"] = data["Genres"].apply(lambda x: "Miscellaneous" if x == "" else x)
-
-    # Print genres for debugging
-    print("Unique genres in dataset:") if VERBOSE else None
-    print(data["Genres"].unique()) if VERBOSE else None
+    
+    if VERBOSE:
+        print("Unique genres in dataset:")
+        print(data["Genres"].unique())
 
     return data
+
     
 def create_nodes_and_edges(data):
     # Extract unique users and Spotify IDs from dataframe
@@ -159,7 +147,7 @@ def create_nodes_and_edges(data):
     # Create nodes
     nodes = []
     for user in users:
-        nodes.append({"id": user, "type": "user", "label": user, "color": PALETTE.mocha.colors.overlay0.hex, "size": 15, "bipartite": 0})
+        nodes.append({"id": user, "type": "user", "label": user, "color": PALETTE.mocha.colors.overlay0.hex, "size": 30, "bipartite": 0})
 
     # Get list of colors from palette
     colors = []
@@ -185,7 +173,7 @@ def create_nodes_and_edges(data):
         genre = track_data["Genres"].iloc[0]
         genre_color = genre_colors[genres.index(genre)]
 
-        nodes.append({"id": spotify_id, "type": "track", "label": track_labels[index], "genre": genre, "color": genre_color.hex, "size": 3, "bipartite": 1})
+        nodes.append({"id": spotify_id, "type": "track", "label": track_labels[index], "genre": genre, "color": genre_color.hex, "size": 15, "bipartite": 1})
 
     # Create edges by looping thru spotify ids and users
     edges = []
@@ -198,14 +186,13 @@ def create_nodes_and_edges(data):
     if SHOW_GENRES:
         # Create nodes for genres
         for genre in genres:
-            nodes.append({"id": genre, "type": "genre", "label": genre, "color": legend[genre].hex, "size": 5, "bipartite": 2})
+            nodes.append({"id": genre, "type": "genre", "label": genre, "color": genre_colors[genres.index(genre)].hex, "size": 5, "bipartite": 20})
 
         # Create edges for genres
         for spotify_id in spotify_ids:
             track_data = data[data["Spotify ID"] == spotify_id]
-            genres = track_data["Genres"]
-            for genre in genres:
-                edges.append({"source": spotify_id, "target": genre, "color": legend[genre].hex})
+            genre = track_data["Genres"].tolist()[0]
+            edges.append({"source": spotify_id, "target": genre, "color": genre_colors[genres.index(genre)].hex})
 
     print("Created " + str(len(nodes)) + " nodes and " + str(len(edges)) + " edges.") if VERBOSE else None
 
@@ -271,8 +258,15 @@ def main():
 
     print("\nProgram complete.")
 
-    
-
 # Main
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nProgram terminated by user.")
+        sys.exit(0)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        sys.exit(1)
+
+# End of file
