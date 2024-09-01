@@ -18,7 +18,7 @@ SHOW_GENRES =                 True # Set to False to disable showing genre nodes
 SHOW_SONGS =                  True # Set to False to disable showing song nodes
 SHOW_GENRE_USERS =            True # Set to False to disable showing genre > user connections
 WRITE_ENTRIES_WITHOUT_GENRE = True # Set to False to disable writing entries without genre to a file
-VERBOSE =                     True # Set to False to disable verbose output
+VERBOSE =                     False # Set to False to disable verbose output
 
 # Check to make sure switches are compatible
 if not SHOW_GENRES and not SHOW_SONGS and not SHOW_GENRE_USERS:
@@ -125,6 +125,7 @@ def create_nodes_and_edges(data):
 
     # Create nodes for users
     for user in users:
+        print("User: " + user) if VERBOSE else None
         nodes.append({"id": user, "type": "user", "label": user, "color": PALETTE.mocha.colors.overlay0.hex, "size": 30, "bipartite": 0})
 
     # Create labels for tracks
