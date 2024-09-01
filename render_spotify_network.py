@@ -2,6 +2,8 @@
 # 2024-08-31
 # Spotify Network Visualization
 
+# Go to the switches section to enable or disable different parts of the visualization
+
 # Imports
 import sys
 import os
@@ -12,13 +14,20 @@ from pyvis.network import Network
 
 from catppuccin import PALETTE
 
+# Globals
+DATA_PATH = "data/"
+OUTPUT_PATH = "out/"
+
+# Print header
+print("\nSpotify Network Visualization 1.0")
+
 # Switches
-SHOW_VISUALIZATION =          True # Set to False to disable opening the visualization in a browser
+SHOW_VISUALIZATION =          False # Set to False to disable opening the visualization in a browser
 SHOW_GENRES =                 True # Set to False to disable showing genre nodes
 SHOW_SONGS =                  True # Set to False to disable showing song nodes
 SHOW_GENRE_USERS =            True # Set to False to disable showing genre > user connections
 WRITE_ENTRIES_WITHOUT_GENRE = True # Set to False to disable writing entries without genre to a file
-VERBOSE =                     False # Set to False to disable verbose output
+VERBOSE =                     True # Set to False to disable verbose output
 
 # Check to make sure switches are compatible
 if not SHOW_GENRES and not SHOW_SONGS and not SHOW_GENRE_USERS:
@@ -29,12 +38,14 @@ if SHOW_GENRE_USERS and not SHOW_GENRES:
     print("Error: SHOW_GENRE_USERS cannot be set to True if SHOW_GENRES is set to False.")
     sys.exit(1)
 
-# Globals
-DATA_PATH = "data/"
-OUTPUT_PATH = "out/"
-
-print("\nSpotify Network Visualization 1.0")
-print("Verbose mode is on.") if VERBOSE else None
+# Show switches
+print("\nRunning with options:")
+print("SHOW_VISUALIZATION:          " + str(SHOW_VISUALIZATION))
+print("SHOW_GENRES:                 " + str(SHOW_GENRES))
+print("SHOW_SONGS:                  " + str(SHOW_SONGS))
+print("SHOW_GENRE_USERS:            " + str(SHOW_GENRE_USERS))
+print("WRITE_ENTRIES_WITHOUT_GENRE: " + str(WRITE_ENTRIES_WITHOUT_GENRE))
+print("VERBOSE:                     " + str(VERBOSE))
 
 def load_data_from_csv():
     # Get filenames from datapath
@@ -43,7 +54,7 @@ def load_data_from_csv():
     # Load data from each file
     data_list = []
     for filename in filenames:
-        print("Loading data from file: " + filename)
+        print("Loading data from file: " + filename) if VERBOSE else None
         data = pd.read_csv(DATA_PATH + filename)
 
         # Get the name of the spotify user from the first part of the filename
@@ -83,8 +94,8 @@ def clean_data(data):
     
     # Resolve duplicate track names with different Spotify IDs
     duplicate_tracks = data[data.duplicated(subset="Track Name", keep=False)]
-    if VERBOSE and not duplicate_tracks.empty:
-        print(f"Found {len(duplicate_tracks)} duplicate track names. Attempting to resolve.")
+    if not duplicate_tracks.empty:
+        print(f"Found {len(duplicate_tracks)} duplicate track names. Attempting to resolve.") if VERBOSE else None
 
     # Ensure no duplicates in index
     data = data.reset_index(drop=True)
@@ -108,9 +119,9 @@ def clean_data(data):
         entries_without_genre = data[data["Category"] == "Unknown"]
         if not entries_without_genre.empty:
             entries_without_genre.to_csv(OUTPUT_PATH + "entries_without_genre.csv", index=False)
-            print("Entries without genre written to file.")
+            print(len(entries_without_genre) + " entries without genre written to file.") if VERBOSE else None
         else:
-            print("No entries without genre found.")
+            print("No entries without genre found.") if VERBOSE else None
 
     return data
 
@@ -221,31 +232,42 @@ def create_nodes_and_edges(data):
 def visualize_network(nodes, edges):
     # Create a new graph
     G = nx.Graph()
+    print("Graph created.") if VERBOSE else None
 
     # Add nodes and edges to the graph
     for node in nodes:
         G.add_node(node["id"], label=node["label"], type=node["type"], size=node["size"], bipartite=node["bipartite"], color=node["color"])
+        print("Added node: " + node["label"]) if VERBOSE else None
     
     for edge in edges:
         G.add_edge(edge["source"], edge["target"])
+        print("Added edge: " + edge["source"] + " -> " + edge["target"]) if VERBOSE else None
 
     # Create a network visualization
+    print("Converting NetworkX to PyVis...") if VERBOSE else None
     N = Network("1000px", "1000px", notebook=False, directed=False, bgcolor=PALETTE.mocha.colors.mantle.hex, font_color=PALETTE.mocha.colors.text.hex)
     N.from_nx(G)
 
     # Configure the network visualization
+    print("Configuring visualization...") if VERBOSE else None
     N.barnes_hut(spring_strength=0.15)
     N.show_buttons(filter_=True)
 
+    # Save visualization to file
+    print("Saving network visualization to file...") if VERBOSE else None
+    # N.save_graph(OUTPUT_PATH + "network.html")
+
     # Show visualization
-    N.show(OUTPUT_PATH + "network.html", notebook=False) if SHOW_VISUALIZATION else None
-    print("Network visualization displayed in browser.") if VERBOSE and SHOW_VISUALIZATION else None
+    if SHOW_VISUALIZATION:
+        print("Displaying network visualization in browser...") if VERBOSE else None
+        N.show(OUTPUT_PATH + "network.html", notebook=False)
+        print("Network visualization displayed in browser.") if VERBOSE else None
 
 def main():
     print("\nPlease wait while the visualization is created...")
 
     try:
-        print("Loading data...")
+        print("\nLoading data...")
         data = load_data_from_csv()
         print("Data loaded successfully.")
     except Exception as e:
