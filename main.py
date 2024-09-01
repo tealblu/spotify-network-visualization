@@ -13,10 +13,10 @@ from pyvis.network import Network
 from catppuccin import PALETTE
 
 # Switches
-SHOW_VISUALIZATION = True
-SHOW_GENRES = True
+SHOW_VISUALIZATION =          True
+SHOW_GENRES =                 True
 WRITE_ENTRIES_WITHOUT_GENRE = True
-VERBOSE = True
+VERBOSE =                     True
 
 # Globals
 DATA_PATH = "data/"
@@ -137,35 +137,33 @@ def create_nodes_and_edges(data):
     # Create palette for categories with len(categories) colors modulated from the palette
     genre_colors = [colors[i % len(colors)] for i in range(len(genres))]
 
-    # Create nodes for tracks
-    for spotify_id in spotify_ids:
-        index = list(spotify_ids).index(spotify_id)
-        
-        # Get genre for track for coloring
-        track_data = data[data["Spotify ID"] == spotify_id]
-        genre = track_data["Category"].iloc[0]
-        genre_color = genre_colors[genres.index(genre)]
-
-        nodes.append({"id": spotify_id, "type": "track", "label": track_labels[index], "genre": genre, "color": genre_color.hex, "size": 15, "bipartite": 1})
-
-    # Create edges by looping thru spotify ids and users
+    # Create nodes and edges for tracks
     edges = []
     for spotify_id in spotify_ids:
+        # Get data for track
+        index = list(spotify_ids).index(spotify_id)
         track_data = data[data["Spotify ID"] == spotify_id]
+        genre = track_data["Category"].iloc[0]
         users = track_data["user"].tolist()
+
+        # Create node for track
+        nodes.append({"id": spotify_id, "type": "track", "label": track_labels[index], "genre": genre, "color": genre_colors[genres.index(genre)].hex, "size": 2, "bipartite": 1})
+
+        # Create edges between users and tracks
         for user in users:
-            edges.append({"source": user, "target": spotify_id})
+            edges.append({"source": user, "target": spotify_id, "color": PALETTE.mocha.colors.overlay1.hex})
     
+    # Create nodes and edges for genres
     if SHOW_GENRES:
         # Create nodes for genres
         for genre in genres:
-            nodes.append({"id": genre, "type": "genre", "label": genre, "color": genre_colors[genres.index(genre)].hex, "size": 5, "bipartite": 2})
+            nodes.append({"id": genre, "type": "genre", "label": genre, "color": genre_colors[genres.index(genre)].hex, "size": 5, "bipartite": 0})
 
-        # Create edges for genres
+        # Create edges between tracks and genres
         for spotify_id in spotify_ids:
             track_data = data[data["Spotify ID"] == spotify_id]
             genre = track_data["Category"].iloc[0]
-            edges.append({"source": spotify_id, "target": genre, "color": genre_colors[genres.index(genre)].hex})
+            edges.append({"source": spotify_id, "target": genre, "color": genre_colors[genres.index(genre)].hex, "width": 0.5})
 
     print("Created " + str(len(nodes)) + " nodes and " + str(len(edges)) + " edges.") if VERBOSE else None
 
@@ -187,7 +185,7 @@ def visualize_network(nodes, edges):
     N.from_nx(G)
 
     # Configure the network visualization
-    N.barnes_hut(spring_strength=0.15)
+    #N.barnes_hut(spring_strength=0.15)
     N.show_buttons(filter_=True)
 
     # Show visualization
@@ -207,7 +205,7 @@ def main():
 
     try:
         print("\nCleaning data...")
-        data = clean_data(data)
+        cleaned_data = clean_data(data)
         print("Data cleaned successfully.")
     except Exception as e:
         print(f"Error cleaning data: {repr(e)}")
@@ -215,7 +213,7 @@ def main():
 
     try:
         print("\nPreparing nodes and edges...")
-        nodes, edges = create_nodes_and_edges(data)
+        nodes, edges = create_nodes_and_edges(cleaned_data)
         print("Nodes and edges prepared successfully.")
     except Exception as e:
         print(f"Error preparing nodes and edges: {repr(e)}")
