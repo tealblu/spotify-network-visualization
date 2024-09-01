@@ -2,6 +2,16 @@
 # 2024-08-31
 # Spotify Network Visualization
 
+# Imports
+import sys
+import os
+
+import pandas as pd
+import networkx as nx
+from pyvis.network import Network
+
+from catppuccin import PALETTE
+
 # Switches
 SHOW_VISUALIZATION = True
 SHOW_GENRES = True
@@ -11,18 +21,6 @@ VERBOSE = True
 # Globals
 DATA_PATH = "data/"
 OUTPUT_PATH = "out/"
-
-# Imports
-import sys
-import os
-
-import pandas as pd
-import networkx as nx
-from pyvis.network import Network
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-
-from catppuccin import PALETTE
 
 print("\nSpotify Network Visualization 1.0")
 print("Verbose mode is on.") if VERBOSE else None
@@ -71,55 +69,34 @@ def clean_data(data):
 
     data.loc[duplicate_tracks.index, "Spotify ID"] = data.groupby("Track Name")["Spotify ID"].transform('first')
     
-    # Genre categories dictionary
-    genre_categories = {
-        "Rock & Metal": ["alt-rock", "alternative", "black-metal", "death-metal", "emo", "grindcore", "hard-rock", "hardcore", "heavy-metal", "metal", "metal-misc", "metalcore", "psych-rock", "punk", "punk-rock", "rock", "rock-n-roll", "rockabilly"],
-        "Electronic & Dance": ["breakbeat", "chicago-house", "club", "dance", "dancehall", "deep-house", "detroit-techno", "disco", "drum-and-bass", "dub", "dubstep", "edm", "electro", "electronic", "house", "idm", "minimal-techno", "post-dubstep", "progressive-house", "techno", "trance", "trip-hop"],
-        "Pop & Indie": ["acoustic", "indie", "indie-pop", "j-pop", "k-pop", "pop", "power-pop", "singer-songwriter", "synth-pop", "indie pop", "buffalo ny indie"],
-        "Jazz & Blues": ["blues", "jazz"],
-        "Folk & Country": ["bluegrass", "country", "folk", "honky-tonk"],
-        "Jazz & Blues": ["blues", "jazz"],
-        "Classical & Traditional": ["classical", "opera", "piano"],
-        "World & Regional": ["afrobeat", "bossanova", "brazil", "cantopop", "forro", "french", "german", "gospel", "indian", "iranian", "j-dance", "j-idol", "j-rock", "latin", "latino", "malay", "mandopop", "mpb", "pagode", "philippines-opm", "reggaeton", "samba", "sertanejo", "spanish", "swedish", "tango", "turkish", "world-music"],
-        "Alternative & Experimental": ["ambient", "chill", "goth", "groove", "industrial", "minimal-techno", "post-dubstep", "psych-rock", "punk", "punk-rock", "shoegaze"],
-        "Soundtracks & Themes": ["anime", "comedy", "disney", "holidays", "movies", "romance", "show-tunes", "soundtracks"],
-        "Miscellaneous": ["children", "happy", "rainy-day", "road-trip", "sad", "sleep", "study", "summer", "work-out", "new-age", "new-release", "party"]
-    }
+    # Get genre: category mapping from genre_mapping.json
+    genre_mapping = pd.read_json("genre_mapping.json", typ="series")
+    genre_to_category = genre_mapping.to_dict()
     
-    # Flatten genre categories
-    genre_to_category = {genre: category for category, genres in genre_categories.items() for genre in genres}
-    
-    # Replace genres with categories or set to miscellaneous if not found
-    def map_genres(genre_str):
-        genres = genre_str.split(",")
-        mapped_genres = []
-        missing_genres = []
-        for genre in genres:
-            print(genre) if VERBOSE else None
-            if genre in genre_to_category.keys():
-                mapped_genres.append(genre_to_category[genre])
-            else:
-                # check if missing genre is already in list
-                if genre not in missing_genres:
-                    missing_genres.append(genre)
-                mapped_genres.append("Unknown")
+    # Get list of genres for each track
+    data["Genres"] = data["Genres"].str.split(", ")
 
-        if WRITE_ENTRIES_WITHOUT_GENRE and missing_genres:
-            with open(OUTPUT_PATH + "missing_genres.txt", "a") as f:
-                f.write(f"{missing_genres}\n")                
-        return ", ".join(set(mapped_genres))
-    
-    data["Genres"] = data["Genres"].apply(map_genres)
-    
-    # Remove entries without matching genre
-    data = data[data["Genres"] != ""]
+    # Create a new column for the primary genre of each track (first genre in list)
+    data["Primary Genre"] = data["Genres"].apply(lambda x: x[0].split(",")[0])
 
-    # Sort genre lists alphabetically
-    data["Genres"] = data["Genres"].apply(lambda x: ", ".join(sorted(x.split(", "))))
+    # Create a new column for the category of each genre
+    data["Category"] = data["Primary Genre"].map(genre_to_category)
+
+    # Set category to "Unknown" if genre is not in the dictionary
+    data.loc[data["Category"].isnull(), "Category"] = "Unknown"
+
+    # Write entries without category to a file
+    if WRITE_ENTRIES_WITHOUT_GENRE:
+        entries_without_genre = data[data["Category"] == "Unknown"]
+        if not entries_without_genre.empty:
+            entries_without_genre.to_csv(OUTPUT_PATH + "entries_without_genre.csv", index=False)
+            print("Entries without genre written to file.")
+        else:
+            print("No entries without genre found.")
     
     if VERBOSE:
-        print("Unique genres in dataset:")
-        print(data["Genres"].unique())
+        print("Unique categories in dataset:")
+        print(data["Category"].unique())
 
     return data
 
@@ -128,6 +105,11 @@ def create_nodes_and_edges(data):
     # Extract unique users and Spotify IDs from dataframe
     users = data["user"].unique().tolist()
     spotify_ids = data["Spotify ID"].unique().tolist()
+
+    # Create nodes for users
+    nodes = []
+    for user in users:
+        nodes.append({"id": user, "type": "user", "label": user, "color": PALETTE.mocha.colors.overlay0.hex, "size": 30, "bipartite": 0})
 
     # Create labels for tracks
     track_labels = []
@@ -144,33 +126,24 @@ def create_nodes_and_edges(data):
         track_name = track_data["Track Name"].iloc[0]
         track_labels.append(track_name + "\n" + artist)
 
-    # Create nodes
-    nodes = []
-    for user in users:
-        nodes.append({"id": user, "type": "user", "label": user, "color": PALETTE.mocha.colors.overlay0.hex, "size": 30, "bipartite": 0})
-
     # Get list of colors from palette
     colors = []
     for color in PALETTE.mocha.colors:
         colors.append(color) if color.accent else None
 
-    # Get genres from data
-    genres = data["Genres"].unique().tolist()
+    # Get list of categories
+    genres = data["Category"].unique().tolist()
 
-    # Create palette for genres with len(genres) colors
-    genre_colors = []
-    legend = {}
-    for i in range(len(genres)):
-        genre_colors.append(colors[i % len(colors)])
-        print("Genre " + genres[i] + " has color " + genre_colors[i].name) if VERBOSE else None
+    # Create palette for categories with len(categories) colors modulated from the palette
+    genre_colors = [colors[i % len(colors)] for i in range(len(genres))]
 
     # Create nodes for tracks
     for spotify_id in spotify_ids:
         index = list(spotify_ids).index(spotify_id)
         
-        # Get genre for track
+        # Get genre for track for coloring
         track_data = data[data["Spotify ID"] == spotify_id]
-        genre = track_data["Genres"].iloc[0]
+        genre = track_data["Category"].iloc[0]
         genre_color = genre_colors[genres.index(genre)]
 
         nodes.append({"id": spotify_id, "type": "track", "label": track_labels[index], "genre": genre, "color": genre_color.hex, "size": 15, "bipartite": 1})
@@ -186,12 +159,12 @@ def create_nodes_and_edges(data):
     if SHOW_GENRES:
         # Create nodes for genres
         for genre in genres:
-            nodes.append({"id": genre, "type": "genre", "label": genre, "color": genre_colors[genres.index(genre)].hex, "size": 5, "bipartite": 20})
+            nodes.append({"id": genre, "type": "genre", "label": genre, "color": genre_colors[genres.index(genre)].hex, "size": 5, "bipartite": 2})
 
         # Create edges for genres
         for spotify_id in spotify_ids:
             track_data = data[data["Spotify ID"] == spotify_id]
-            genre = track_data["Genres"].tolist()[0]
+            genre = track_data["Category"].iloc[0]
             edges.append({"source": spotify_id, "target": genre, "color": genre_colors[genres.index(genre)].hex})
 
     print("Created " + str(len(nodes)) + " nodes and " + str(len(edges)) + " edges.") if VERBOSE else None
@@ -229,15 +202,15 @@ def main():
         data = load_data_from_csv()
         print("Data loaded successfully.")
     except Exception as e:
-        print(f"Error loading data: {e}")
+        print(f"Error loading data: {repr(e)}")
         return
 
     try:
-        print("Cleaning data...")
+        print("\nCleaning data...")
         data = clean_data(data)
         print("Data cleaned successfully.")
     except Exception as e:
-        print(f"Error cleaning data: {e}")
+        print(f"Error cleaning data: {repr(e)}")
         return
 
     try:
@@ -266,7 +239,7 @@ if __name__ == "__main__":
         print("\nProgram terminated by user.")
         sys.exit(0)
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"An error occurred: {repr(e)}")
         sys.exit(1)
 
 # End of file
