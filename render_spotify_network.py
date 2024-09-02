@@ -48,7 +48,7 @@ SHOW_VISUALIZATION = (
     True  # Set to False to disable opening the visualization in a browser
 )
 SHOW_GENRES = True  # Set to False to disable showing genre nodes
-SHOW_SONGS = False  # Set to False to disable showing song nodes
+SHOW_SONGS = True  # Set to False to disable showing song nodes
 SHOW_CATEGORIES = True  # Set to False to disable showing category nodes
 WRITE_ENTRIES_WITHOUT_GENRE = (
     True  # Set to False to disable writing entries without genre to a file
@@ -70,6 +70,12 @@ print("SHOW_SONGS:                  " + str(SHOW_SONGS))
 print("SHOW_CATEGORIES:             " + str(SHOW_CATEGORIES))
 print("WRITE_ENTRIES_WITHOUT_GENRE: " + str(WRITE_ENTRIES_WITHOUT_GENRE))
 print("VERBOSE:                     " + str(VERBOSE))
+
+# Warn user if all 'SHOW' switches are True
+if SHOW_GENRES and SHOW_SONGS and SHOW_CATEGORIES:
+    print(
+        "\nWarning: All 'SHOW' switches are set to True. This may result in a large number of nodes and edges. Rendering will take a long time!"
+    )
 
 # Init
 print("\nInitializing...") if VERBOSE else None

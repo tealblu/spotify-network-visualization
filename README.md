@@ -30,3 +30,5 @@ pip install -r requirements.txt
 
 ## Notes
   - To use this tool, your spotify data must already be present as a .CSV file in the `data` folder. Use [this link](https://exportify.net/) to download your spotify data.
+    - Format the output csv file like this: `YOURNAME_liked_songs.csv`
+  - Try rendering multiple data sets at one time :)
