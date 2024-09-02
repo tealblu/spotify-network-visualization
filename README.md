@@ -23,10 +23,10 @@ This project generates an interactive network visualization that shows the simil
   - `pyvis`
   - `catppuccin`
 
-You can install these requirements using pip:
-```bash
-pip install -r requirements.txt
-```
+- You can install these requirements using pip:
+  ```bash
+  pip install -r requirements.txt
+  ```
 
 ## Notes
   - To use this tool, your spotify data must already be present as a .CSV file in the `data` folder. Use [this link](https://exportify.net/) to download your spotify data.
