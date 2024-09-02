@@ -19,26 +19,29 @@ DATA_PATH = "data/"
 OUTPUT_PATH = "out/"
 
 # Print header
-print(
-    """
-⢀⠔⠒⠐⠀⠂⠂⠐⠂⠐⠂⠐⠂⠐⠂⠐⠂⠐⠀⠂⠐⠀⠂⠐⠀⠂⠐⠂⠐⠂⠐⠂⠐⠂⠐⠂⠐⠂⠐⠂⠐⠂⠐⠂⠐⠂⠐⠂⠐⠂⠐⠂⠐⠂⠐⠂⠐⠀⠂⠐⠀⠒⠢⡀
-⢸⠀⢐⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⠂⠀⡇
-⢸⠀⢨⣿⣿⣿⣿⣿⣿⠿⠿⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⢿⣿⣿⡿⢿⣿⣿⣿⣿⠀⠀⡇        print("Added node: " + node["label"]) if VERBOSE else None
-⢸⠀⠰⣿⣿⣿⡿⠋⠀⠀⠀⡀⠈⠻⣿⣿⣿⣿⣿⣿⣿⣿⣿⢙⣿⣿⡇⢸⣿⣿⠿⣿⣿⡿⢻⣿⣿⡇⢸⠀⣿⠿⣿⣿⡟⢻⡟⢿⠀⣿⠿⣿⠀⡿⢻⡇⢸⣿⣿⣿⣿⠀⠀⡇
-⢸⠀⢘⣿⣿⡟⠀⢀⣦⣇⣾⣷⡆⠀⢹⣿⣿⡟⢿⠟⣿⠉⣿⢸⡟⢻⡇⢸⠋⣿⠀⣿⠙⡟⢸⡏⢹⡇⢸⠀⣿⠀⡿⢻⡇⢸⡇⢸⠀⣿⠀⣿⠀⡇⢸⡇⢸⡟⣿⣿⣿⠀⠀⡇
-⢸⠀⢈⣿⣿⣷⠀⠈⠋⠏⠻⠏⠁⠀⣼⣿⣿⣷⣾⣶⣿⣤⣿⠰⣷⣾⡇⢸⣦⣿⠀⣿⣤⡏⢸⣧⣼⡇⢸⠀⣿⠀⣿⣾⡇⢸⡇⢸⠀⣿⠀⣿⠀⡇⢸⡇⢸⣷⣿⣿⣿⠀⠀⡇
-⢸⠀⠨⣿⣿⣿⣧⣄⠀⠀⠀⠀⣠⣼⣿⣿⣿⣿⣿⣿⣿⣿⣿⣰⣿⣿⣇⣸⣿⣿⣿⣿⣿⣷⣼⣿⣿⡇⢸⡀⣿⣿⣿⣿⣷⣾⣷⣾⡀⣿⣿⣿⠀⣷⣾⡇⢸⣿⣿⣿⣿⠀⠀⡇
-⢸⠀⢘⣿⣿⣿⣿⣿⣿⣷⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣾⣿⣿⣿⣿⣿⣿⣿⣿⠀⠀⡇
-⢸⠀⠈⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠂⠀⡇
-⠀⠓⠠⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠚⠀
-"""
-)
 print("\n" + "-" * 50)
 print("Spotify Network Visualization 1.0")
 print("Indigo Hartsell")
 print("indiharts@proton.me")
 print("2024-08-31")
 print("-" * 50 + "\n")
+print(
+    """
+    ⠀⠀⠀⠀⠀⠀⠀⢀⣠⣤⣤⣶⣶⣶⣶⣤⣤⣄⡀⠀⠀⠀⠀⠀⠀⠀
+    ⠀⠀⠀⠀⢀⣤⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣤⡀⠀⠀⠀⠀
+    ⠀⠀⠀⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣦⠀⠀⠀
+    ⠀⢀⣾⣿⡿⠿⠛⠛⠛⠉⠉⠉⠉⠛⠛⠛⠿⠿⣿⣿⣿⣿⣿⣷⡀⠀
+    ⠀⣾⣿⣿⣇⠀⣀⣀⣠⣤⣤⣤⣤⣤⣀⣀⠀⠀⠀⠈⠙⠻⣿⣿⣷⠀
+    ⢠⣿⣿⣿⣿⡿⠿⠟⠛⠛⠛⠛⠛⠛⠻⠿⢿⣿⣶⣤⣀⣠⣿⣿⣿⡄
+    ⢸⣿⣿⣿⣿⣇⣀⣀⣤⣤⣤⣤⣤⣄⣀⣀⠀⠀⠉⠛⢿⣿⣿⣿⣿⡇
+    ⠘⣿⣿⣿⣿⣿⠿⠿⠛⠛⠛⠛⠛⠛⠿⠿⣿⣶⣦⣤⣾⣿⣿⣿⣿⠃
+    ⠀⢿⣿⣿⣿⣿⣤⣤⣤⣤⣶⣶⣦⣤⣤⣄⡀⠈⠙⣿⣿⣿⣿⣿⡿⠀
+    ⠀⠈⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣾⣿⣿⣿⣿⡿⠁⠀
+    ⠀⠀⠀⠻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠟⠀⠀⠀
+    ⠀⠀⠀⠀⠈⠛⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠛⠁⠀⠀⠀⠀
+    ⠀⠀⠀⠀⠀⠀⠀⠈⠙⠛⠛⠿⠿⠿⠿⠛⠛⠋⠁⠀⠀⠀⠀⠀⠀⠀
+    """
+)
 
 # Switches
 SHOW_VISUALIZATION = (
@@ -46,7 +49,6 @@ SHOW_VISUALIZATION = (
 )
 SHOW_GENRES = True  # Set to False to disable showing genre nodes
 SHOW_SONGS = False  # Set to False to disable showing song nodes
-SHOW_GENRE_USERS = True  # Set to False to disable showing genre > user connections
 SHOW_CATEGORIES = True  # Set to False to disable showing category nodes
 WRITE_ENTRIES_WITHOUT_GENRE = (
     True  # Set to False to disable writing entries without genre to a file
@@ -54,15 +56,9 @@ WRITE_ENTRIES_WITHOUT_GENRE = (
 VERBOSE = True  # Set to False to disable verbose output
 
 # Check to make sure switches are compatible
-if not SHOW_GENRES and not SHOW_SONGS and not SHOW_GENRE_USERS:
+if not SHOW_GENRES and not SHOW_SONGS and not SHOW_CATEGORIES:
     print(
-        "Error: At least one of SHOW_GENRES, SHOW_SONGS, or SHOW_GENRE_USERS must be set to True."
-    )
-    sys.exit(1)
-
-if SHOW_GENRE_USERS and not SHOW_GENRES:
-    print(
-        "Error: SHOW_GENRE_USERS cannot be set to True if SHOW_GENRES is set to False."
+        "Error: At least one of SHOW_GENRES, SHOW_SONGS, or SHOW_CATEGORIES must be set to True."
     )
     sys.exit(1)
 
@@ -71,7 +67,6 @@ print("\nRunning with options:")
 print("SHOW_VISUALIZATION:          " + str(SHOW_VISUALIZATION))
 print("SHOW_GENRES:                 " + str(SHOW_GENRES))
 print("SHOW_SONGS:                  " + str(SHOW_SONGS))
-print("SHOW_GENRE_USERS:            " + str(SHOW_GENRE_USERS))
 print("SHOW_CATEGORIES:             " + str(SHOW_CATEGORIES))
 print("WRITE_ENTRIES_WITHOUT_GENRE: " + str(WRITE_ENTRIES_WITHOUT_GENRE))
 print("VERBOSE:                     " + str(VERBOSE))
@@ -327,33 +322,34 @@ def create_nodes_and_edges(data):
                 track_data = data[data["Spotify ID"] == spotify_id]
                 genre = track_data["Category"].iloc[0]
                 category = genre_to_category(genre)
+                color = category_colors[categories.index(category)].hex
                 edges.append(
                     {
                         "source": spotify_id,
                         "target": genre,
-                        "color": category_colors[categories.index(category)].hex,
+                        "color": color,
                     }
                 )
 
         # Create edges for genre > user connections
-        if SHOW_GENRE_USERS:
-            for user in users:
-                user_data = data[data["user"] == user]
-                user_genres = []
-                for genre_list in user_data["Genres"].tolist():
-                    for g in genre_list.split(","):
-                        if g not in user_genres:
-                            user_genres.append(g)
+        for user in users:
+            user_data = data[data["user"] == user]
+            user_genres = []
+            for genre_list in user_data["Genres"].tolist():
+                for g in genre_list.split(","):
+                    if g not in user_genres:
+                        user_genres.append(g)
 
-                for genre in user_genres:
-                    category = genre_to_category(genre)
-                    edges.append(
-                        {
-                            "source": user,
-                            "target": genre,
-                            "color": category_colors[categories.index(category)].hex,
-                        }
-                    )
+            for genre in user_genres:
+                category = genre_to_category(genre)
+                color = alter_rgb(category_colors[categories.index(category)].rgb, 1.5)
+                edges.append(
+                    {
+                        "source": user,
+                        "target": genre,
+                        "color": color,
+                    }
+                )
 
     # Create nodes and edges for categories
     if SHOW_CATEGORIES:
@@ -375,17 +371,21 @@ def create_nodes_and_edges(data):
             for genre in genres:
                 label = genre[0]
                 category = genre[1]
-                color = alter_rgb(category_colors[categories.index(category)].rgb, 0.8)
+                color = alter_rgb(category_colors[categories.index(category)].rgb, 0.5)
 
                 edges.append({"source": label, "target": category, "color": color})
 
-    (
-        print(
-            "Created " + str(len(nodes)) + " nodes and " + str(len(edges)) + " edges."
+        (
+            print(
+                "Created "
+                + str(len(nodes))
+                + " nodes and "
+                + str(len(edges))
+                + " edges."
+            )
+            if VERBOSE
+            else None
         )
-        if VERBOSE
-        else None
-    )
 
     return nodes, edges
 
@@ -419,12 +419,12 @@ def visualize_network(nodes, edges):
         bgcolor=PALETTE.mocha.colors.mantle.hex,
         font_color=PALETTE.mocha.colors.text.hex,
     )
-    N.repulsion()
     N.from_nx(G)
 
     # Configure the network physics
     print("Configuring visualization...") if VERBOSE else None
     N.barnes_hut(spring_strength=0.15)
+    N.repulsion()
 
     # Configure the network visualization
     N.show_buttons(filter_=True)

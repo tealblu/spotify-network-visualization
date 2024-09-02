@@ -808,6 +808,7 @@ def create_mapping():
         'chicago hardcore': 'Rock & Metal',
         'chicago punk': 'Rock & Metal',
         'protopunk': 'Rock & Metal',    
+        'women\'s music': 'Miscellaneous',
     }
 
     # Save mapping to json
@@ -815,7 +816,7 @@ def create_mapping():
         json.dump(genre_to_category, f, indent=2)
 
 def main():
-    chunk_missing_genres()
+    # chunk_missing_genres()
     create_mapping()
 
 if __name__ == '__main__':
